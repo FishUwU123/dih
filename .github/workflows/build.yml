@@ -11,12 +11,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: '11'
 
       - name: Install apktool
@@ -33,27 +33,32 @@ jobs:
           chmod +x $HOME/zipalign
           sudo mv $HOME/zipalign /usr/local/bin/
 
-      - name: Decompiling APK
+      - name: Decompile APK
         run: apktool d dynamicspot-latest.apk -o decompiled_apk
 
       - name: Modify smali file
-        run: python modify.py
+        run: python3 modify.py
 
       - name: Recompile APK
         run: apktool b decompiled_apk -o dynamicspot-modded.apk
 
       - name: Generate debug.keystore
         run: |
-          keytool -genkeypair -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -keystore debug.keystore -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+          keytool -genkeypair -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+          -keystore debug.keystore -storepass android -keypass android \
+          -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Sign APK with debug key
-        run: jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore debug.keystore -storepass android -keypass android dynamicspot-modded.apk androiddebugkey
+        run: |
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+          -keystore debug.keystore -storepass android -keypass android \
+          dynamicspot-modded.apk androiddebugkey
 
       - name: Align APK
         run: zipalign -v 4 dynamicspot-modded.apk dynamicspot-modded-aligned.apk
 
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v2
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: DynamicSpot-Modded.apk
-          path: ./dynamicspot-modded-aligned.apk
+          path: dynamicspot-modded-aligned.apk
