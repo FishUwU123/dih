@@ -49,6 +49,55 @@ jobs:
           -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Sign APK with debug key
+name: Mod and Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  modify_and_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Install apktool (jar only, no broken wrapper)
+        run: |
+          wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
+          sudo mv apktool.jar /usr/local/bin/
+          sudo chmod 755 /usr/local/bin/apktool.jar
+
+      - name: Install zipalign
+        run: |
+          wget https://github.com/blattmann/zipalign/raw/master/zipalign -O zipalign
+          chmod +x zipalign
+          sudo mv zipalign /usr/local/bin/
+
+      - name: Decompile APK
+        run: java -jar /usr/local/bin/apktool.jar d dynamicspot-latest.apk -o decompiled_apk
+
+      - name: Modify smali file
+        run: python3 modify.py
+
+      - name: Recompile APK
+        run: java -jar /usr/local/bin/apktool.jar b decompiled_apk -o dynamicspot-modded.apk
+
+      - name: Generate debug.keystore
+        run: |
+          keytool -genkeypair -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+          -keystore debug.keystore -storepass android -keypass android \
+          -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Sign APK with debug key
         run: |
           jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
           -keystore debug.keystore -storepass android -keypass android \
